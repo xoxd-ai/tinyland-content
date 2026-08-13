@@ -277,6 +277,16 @@ export async function loadUserContent(
 
 type UserContentOrderKey = [number | null, string, string, string];
 
+// The first consumer is an ActivityPub outbox with 20-item pages. Keep the
+// package default aligned with that protocol surface while allowing bounded
+// callers to request up to five pages' worth in one pass. The cursor cap is
+// checked before Buffer allocation; generated cursors contain only one
+// timestamp and three filesystem/content identifiers, so 4 KiB leaves ample
+// headroom while making hostile request memory finite.
+const DEFAULT_USER_CONTENT_PAGE_SIZE = 20;
+const MAX_USER_CONTENT_PAGE_SIZE = 100;
+const MAX_USER_CONTENT_CURSOR_LENGTH = 4096;
+
 function orderKey(item: ContentItem): UserContentOrderKey {
   const rawTimestamp = item.metadata.publishedAt ?? item.metadata.date ??
     item.metadata.startDate ?? item.metadata.joinedDate;
@@ -307,6 +317,7 @@ function encodeCursor(item: ContentItem): string {
 function decodeCursor(cursor?: string): UserContentOrderKey | undefined {
   if (cursor === undefined) return undefined;
   try {
+    if (cursor.length > MAX_USER_CONTENT_CURSOR_LENGTH) throw new Error();
     if (!/^[A-Za-z0-9_-]+$/.test(cursor)) throw new Error();
     const decoded = Buffer.from(cursor, 'base64url');
     if (decoded.toString('base64url') !== cursor) throw new Error();
@@ -333,15 +344,17 @@ function parsePageDateBound(value: string | undefined, name: string): number | u
  * Apply a caller-owned eligibility rule before slicing. The exact eligible
  * total is counted in the same pass, while only the requested page is retained.
  * Totals and cursors describe a live keyset; later inserts/deletes are not snapshot-isolated.
+ * Page size defaults to 20 and is capped at 100. Encoded cursors longer than
+ * 4096 characters are rejected before decoding.
  */
 export async function loadUserContentPage(
   handle: string,
   options: LoadUserContentPageOptions
 ): Promise<UserContentPage> {
   return withSpan('content_loader.load_user_content_page', async () => {
-    const { cursor, predicate, limit = 20, ...loadOptions } = options;
-    if (!Number.isSafeInteger(limit) || limit < 1) {
-      throw new RangeError('limit must be a positive safe integer');
+    const { cursor, predicate, limit = DEFAULT_USER_CONTENT_PAGE_SIZE, ...loadOptions } = options;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_USER_CONTENT_PAGE_SIZE) {
+      throw new RangeError(`limit must be a safe integer from 1 to ${MAX_USER_CONTENT_PAGE_SIZE}`);
     }
 
     const after = decodeCursor(cursor);

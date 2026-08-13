@@ -215,7 +215,8 @@ describe('ContentLoaderService', () => {
         cursor: 'not-a-cursor',
       })).rejects.toThrow(RangeError);
       for (const options of [
-        { limit: 0 }, { limit: 1.5 }, { limit: Number.MAX_SAFE_INTEGER + 1 },
+        { limit: 0 }, { limit: 1.5 }, { limit: 101 },
+        { limit: Number.MAX_SAFE_INTEGER }, { limit: Number.MAX_SAFE_INTEGER + 1 },
         { minId: 'not-a-date' }, { maxId: 'not-a-date' },
       ]) {
         await expect(loadUserContentPage('testuser', {
@@ -223,6 +224,14 @@ describe('ContentLoaderService', () => {
           ...options,
         })).rejects.toThrow(RangeError);
       }
+      await expect(loadUserContentPage('testuser', {
+        predicate: isEligible,
+        cursor: 'a'.repeat(4097),
+      })).rejects.toThrow(RangeError);
+      await expect(loadUserContentPage('testuser', {
+        predicate: isEligible,
+        limit: 100,
+      })).resolves.toMatchObject({ totalItems: 6 });
 
       expect((await loadUserContent('testuser', { limit: 2 }))
         .map((item) => item.slug)).toEqual(['held-000', 'held-001']);
