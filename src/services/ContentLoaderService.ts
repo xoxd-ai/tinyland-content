@@ -17,6 +17,8 @@ import { getContentConfig, getLogger, withSpan } from '../config.js';
 import type {
   ContentItem,
   LoadContentOptions,
+  LoadUserContentPageOptions,
+  UserContentPage,
   ContentVisibility,
 } from '../types.js';
 import { migrateVisibility } from '../types.js';
@@ -224,41 +226,33 @@ function loadContentType(
 
 
 
+async function loadAllUserContent(
+  handle: string,
+  options: LoadContentOptions
+): Promise<ContentItem[]> {
+  const allContent: ContentItem[] = [];
+
+  allContent.push(...await loadBlogPosts({ ...options, handle }));
+  allContent.push(...await loadNotes({ ...options, handle }));
+  allContent.push(...await loadProducts({ ...options, handle }));
+  allContent.push(...await loadEvents({ ...options, handle }));
+  allContent.push(...await loadPrograms({ ...options, handle }));
+  allContent.push(...await loadVideos({ ...options, handle }));
+  allContent.push(...await loadProfiles({ ...options, handle }));
+
+  return allContent;
+}
+
 export async function loadUserContent(
   handle: string,
   options: LoadContentOptions = {}
 ): Promise<ContentItem[]> {
   return withSpan('content_loader.load_user_content', async () => {
-    const allContent: ContentItem[] = [];
+    let filtered = await loadAllUserContent(handle, options);
 
-    const blogPosts = await loadBlogPosts({ ...options, handle });
-    allContent.push(...blogPosts);
-
-    const notes = await loadNotes({ ...options, handle });
-    allContent.push(...notes);
-
-    const products = await loadProducts({ ...options, handle });
-    allContent.push(...products);
-
-    const events = await loadEvents({ ...options, handle });
-    allContent.push(...events);
-
-    const programs = await loadPrograms({ ...options, handle });
-    allContent.push(...programs);
-
-    const videos = await loadVideos({ ...options, handle });
-    allContent.push(...videos);
-
-    const profiles = await loadProfiles({ ...options, handle });
-    allContent.push(...profiles);
-
-    
-    allContent.sort(
+    filtered.sort(
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
-
-    
-    let filtered = allContent;
 
     if (options.minId) {
       const minDate = extractDateFromSlug(options.minId);
@@ -278,6 +272,117 @@ export async function loadUserContent(
     const limit = options.limit || 20;
 
     return filtered.slice(offset, offset + limit);
+  });
+}
+
+type UserContentOrderKey = [number | null, string, string, string];
+
+function orderKey(item: ContentItem): UserContentOrderKey {
+  const rawTimestamp = item.metadata.publishedAt ?? item.metadata.date ??
+    item.metadata.startDate ?? item.metadata.joinedDate;
+  const timestamp = rawTimestamp instanceof Date
+    ? rawTimestamp.getTime()
+    : Date.parse(typeof rawTimestamp === 'string' ? rawTimestamp : '');
+  return [Number.isFinite(timestamp) ? timestamp : null, item.type, item.authorHandle, item.slug];
+}
+
+function compareOrderKeys(a: UserContentOrderKey, b: UserContentOrderKey): number {
+  if (a[0] !== b[0]) {
+    if (a[0] === null) return 1;
+    if (b[0] === null) return -1;
+    return b[0] - a[0];
+  }
+  for (let index = 1; index < a.length; index += 1) {
+    if (a[index] !== b[index]) {
+      return (a[index] as string) < (b[index] as string) ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+function encodeCursor(item: ContentItem): string {
+  return Buffer.from(JSON.stringify([1, ...orderKey(item)])).toString('base64url');
+}
+
+function decodeCursor(cursor?: string): UserContentOrderKey | undefined {
+  if (cursor === undefined) return undefined;
+  try {
+    if (!/^[A-Za-z0-9_-]+$/.test(cursor)) throw new Error();
+    const decoded = Buffer.from(cursor, 'base64url');
+    if (decoded.toString('base64url') !== cursor) throw new Error();
+    const value: unknown = JSON.parse(decoded.toString('utf8'));
+    if (
+      !Array.isArray(value) || value.length !== 5 || value[0] !== 1 ||
+      !(value[1] === null || Number.isSafeInteger(value[1])) ||
+      !value.slice(2).every((part) => typeof part === 'string')
+    ) throw new Error();
+    return value.slice(1) as unknown as UserContentOrderKey;
+  } catch {
+    throw new RangeError('invalid or unsupported cursor');
+  }
+}
+
+function parsePageDateBound(value: string | undefined, name: string): number | undefined {
+  if (value === undefined) return undefined;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) throw new RangeError(`${name} must be a timestamp`);
+  return timestamp;
+}
+
+/**
+ * Apply a caller-owned eligibility rule before slicing. The exact eligible
+ * total is counted in the same pass, while only the requested page is retained.
+ * Totals and cursors describe a live keyset; later inserts/deletes are not snapshot-isolated.
+ */
+export async function loadUserContentPage(
+  handle: string,
+  options: LoadUserContentPageOptions
+): Promise<UserContentPage> {
+  return withSpan('content_loader.load_user_content_page', async () => {
+    const { cursor, predicate, limit = 20, ...loadOptions } = options;
+    if (!Number.isSafeInteger(limit) || limit < 1) {
+      throw new RangeError('limit must be a positive safe integer');
+    }
+
+    const after = decodeCursor(cursor);
+    const minDate = parsePageDateBound(loadOptions.minId, 'minId');
+    const maxDate = parsePageDateBound(loadOptions.maxId, 'maxId');
+    const page: ContentItem[] = [];
+    const seen = new Set<string>();
+    let total = 0;
+    let hasMore = false;
+
+    const content = await loadAllUserContent(handle, loadOptions);
+    content.sort((a, b) => compareOrderKeys(orderKey(a), orderKey(b)));
+    for (const item of content) {
+      const identity = JSON.stringify([item.type, item.authorHandle, item.slug]);
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      const key = orderKey(item);
+      const publishedAt = key[0];
+      if (
+        (minDate !== undefined && (publishedAt === null || publishedAt >= minDate)) ||
+        (maxDate !== undefined && (publishedAt === null || publishedAt <= maxDate)) ||
+        !predicate(item)
+      ) {
+        continue;
+      }
+      total += 1;
+      if (after && compareOrderKeys(key, after) <= 0) {
+        continue;
+      }
+      if (page.length < limit) {
+        page.push(item);
+      } else {
+        hasMore = true;
+      }
+    }
+
+    return {
+      items: page,
+      totalItems: total,
+      nextCursor: hasMore ? encodeCursor(page[page.length - 1]) : null,
+    };
   });
 }
 
@@ -725,6 +830,7 @@ export function extractOrganizerHandle(metadata: Record<string, unknown>): strin
 export function createContentLoader() {
   return {
     loadUserContent,
+    loadUserContentPage,
     loadBlogPosts,
     loadNotes,
     loadProducts,

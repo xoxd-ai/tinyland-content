@@ -81,6 +81,17 @@ export interface LoadContentOptions {
   federatedOnly?: boolean;
 }
 
+export type LoadUserContentPageOptions = Omit<LoadContentOptions, 'offset'> & {
+  predicate: (item: ContentItem) => boolean;
+  cursor?: string;
+};
+
+export interface UserContentPage {
+  items: ContentItem[];
+  totalItems: number;
+  nextCursor: string | null;
+}
+
 
 
 
