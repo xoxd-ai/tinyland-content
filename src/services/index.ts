@@ -15,6 +15,9 @@ export {
   loadVideos,
   loadProfiles,
   loadPostBySlug,
+  loadOwnedPost,
+  updateOwnedPost,
+  deleteOwnedPost,
   loadEventBySlug,
   updatePost,
   updateEvent,
@@ -24,6 +27,7 @@ export {
   extractOrganizerHandle,
   createContentLoader,
 } from './ContentLoaderService.js';
+export type { PostOwner } from './ContentLoaderService.js';
 
 export {
   resolvePostRelationships,

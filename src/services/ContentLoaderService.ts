@@ -417,24 +417,57 @@ export async function loadProfiles(
 
 
 
+/** Stable principal supplied by an authenticated caller, never form metadata. */
+export interface PostOwner {
+  id: string;
+  handle: string;
+}
+
+function validComponent(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 &&
+    value !== '.' && value !== '..' && !/[\/\\\0]/.test(value);
+}
+
+function assertPostOwner(owner: PostOwner, slug: string): void {
+  if (!owner || typeof owner.id !== 'string' || !owner.id.trim() ||
+      !validComponent(owner.handle) || !validComponent(slug)) {
+    throw new Error('Invalid owned post identity');
+  }
+}
+
+function assertPostOwnership(metadata: Record<string, unknown>, owner: PostOwner): void {
+  const author = metadata.author;
+  const nested = author !== null && typeof author === 'object' && !Array.isArray(author)
+    ? author as Record<string, unknown> : undefined;
+  const ids = [metadata.authorId, nested?.id].filter((id) => id !== undefined);
+  if (ids.length === 0 || ids.some((id) => id !== owner.id) ||
+      (nested?.handle !== undefined && nested.handle !== owner.handle) ||
+      (typeof author === 'string' && author !== owner.handle)) {
+    throw new Error('Owned post identity mismatch');
+  }
+}
+
 /**
- * Live-content-only by-slug path resolver for the admin CRUD triad
- * (loadPostBySlug / updatePost / deletePost, and the event equivalents).
- *
- * DELIBERATELY does NOT apply the bundled+live overlay that the public
- * userContentLoader by-slug path (findContentBySlug / loadSingleUserContent →
- * loadBlogPost) uses. This resolver only ever sees the writable live contentDir
- * because its callers write there: updatePost/deletePost mutate found.filePath,
- * and bundled content is a read-only shipped baseline (no copy-on-write). Adding
- * the overlay here would let an admin *load* a bundled-only post that the paired
- * write op then fails to save — a worse footgun than the honest fail-fast 404.
- * The overlay gap is intentional, not the TIN-1952 bug.
+ * Live-content-only resolver for editor CRUD, never a bundled+live overlay.
+ * Bundled content is read-only (no copy-on-write); loading it here would offer
+ * an editor a post that its paired mutation cannot save. The overlay gap is
+ * intentional, not the TIN-1952 bug. An explicit owner selects only that user's
+ * exact path; legacy callers retain the global first-match lookup.
  */
 function findContentPath(
   contentType: string,
-  slug: string
+  slug: string,
+  owner?: PostOwner
 ): { filePath: string; handle: string } | null {
   const usersDir = getUsersDir();
+
+  if (owner !== undefined) {
+    assertPostOwner(owner, slug);
+    const dir = join(usersDir, owner.handle, contentType);
+    const matches = ['.md', '.mdx'].map((ext) => join(dir, `${slug}${ext}`)).filter(existsSync);
+    if (matches.length > 1) throw new Error('Ambiguous owned post extensions');
+    return matches.length === 1 ? { filePath: matches[0], handle: owner.handle } : null;
+  }
 
   if (!existsSync(usersDir)) {
     return null;
@@ -481,16 +514,13 @@ function findContentPath(
  * (opt into raw there via `{ includeUnpublished: true }` only from auth-gated
  * admin/preview callers). See userContentLoader.SingleContentOptions.
  */
-export async function loadPostBySlug(slug: string): Promise<ContentItem | null> {
-  const found = findContentPath('blog', slug);
-
-  if (!found) {
-    return null;
-  }
-
+async function loadPost(slug: string, owner?: PostOwner): Promise<ContentItem | null> {
   try {
+    const found = findContentPath('blog', slug, owner);
+    if (!found) return null;
     const fileContent = readFileSync(found.filePath, 'utf-8');
     const { data: metadata, content: markdownContent } = matter(fileContent);
+    if (owner !== undefined) assertPostOwnership(metadata, owner);
 
     return {
       type: 'blog-post',
@@ -513,6 +543,17 @@ export async function loadPostBySlug(slug: string): Promise<ContentItem | null> 
   }
 }
 
+export async function loadPostBySlug(slug: string): Promise<ContentItem | null> {
+  return loadPost(slug);
+}
+
+/** Raw live-only owner-scoped editor read; not a public projection loader. */
+export async function loadOwnedPost(owner: PostOwner, slug: string): Promise<ContentItem | null> {
+  // Explicit validation prevents a JavaScript caller's undefined owner from
+  // silently selecting the legacy global lookup.
+  try { assertPostOwner(owner, slug); } catch { return null; }
+  return loadPost(slug, owner);
+}
 
 
 
@@ -568,12 +609,13 @@ export async function loadEventBySlug(slug: string): Promise<ContentItem | null>
 
 
 
-export async function updatePost(
+async function writePost(
   slug: string,
   data: Partial<Record<string, unknown>>,
-  content?: string
+  content?: string,
+  owner?: PostOwner
 ): Promise<void> {
-  const found = findContentPath('blog', slug);
+  const found = findContentPath('blog', slug, owner);
 
   if (!found) {
     throw new Error(`Post not found: ${slug}`);
@@ -581,6 +623,7 @@ export async function updatePost(
 
   const fileContent = readFileSync(found.filePath, 'utf-8');
   const { data: existingFrontmatter, content: existingContent } = matter(fileContent);
+  if (owner !== undefined) assertPostOwnership(existingFrontmatter, owner);
 
   const updatedFrontmatter = {
     ...existingFrontmatter,
@@ -593,6 +636,15 @@ export async function updatePost(
   const updatedContent = content !== undefined ? content : existingContent;
   const updatedFile = matter.stringify(updatedContent, updatedFrontmatter);
   writeFileSync(found.filePath, updatedFile, 'utf-8');
+}
+
+export async function updatePost(slug: string, data: Partial<Record<string, unknown>>, content?: string): Promise<void> {
+  return writePost(slug, data, content);
+}
+
+export async function updateOwnedPost(owner: PostOwner, slug: string, data: Partial<Record<string, unknown>>, content?: string): Promise<void> {
+  assertPostOwner(owner, slug);
+  return writePost(slug, data, content, owner);
 }
 
 
@@ -635,6 +687,15 @@ export async function deletePost(slug: string): Promise<void> {
     throw new Error(`Post not found: ${slug}`);
   }
 
+  unlinkSync(found.filePath);
+}
+
+export async function deleteOwnedPost(owner: PostOwner, slug: string): Promise<void> {
+  assertPostOwner(owner, slug);
+  const found = findContentPath('blog', slug, owner);
+  if (!found) throw new Error(`Post not found: ${slug}`);
+  const { data: metadata } = matter(readFileSync(found.filePath, 'utf-8'));
+  assertPostOwnership(metadata, owner);
   unlinkSync(found.filePath);
 }
 
@@ -733,6 +794,9 @@ export function createContentLoader() {
     loadVideos,
     loadProfiles,
     loadPostBySlug,
+    loadOwnedPost,
+    updateOwnedPost,
+    deleteOwnedPost,
     loadEventBySlug,
     updatePost,
     updateEvent,
