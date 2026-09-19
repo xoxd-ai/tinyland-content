@@ -14,6 +14,13 @@ const state = vi.hoisted(() => ({
 vi.mock('fs', () => ({
   readFileSync: state.read, existsSync: state.exists, readdirSync: state.list,
   writeFileSync: state.write, unlinkSync: state.unlink,
+  renameSync: (from: string, to: string) => {
+    const bytes = state.files.get(from);
+    if (bytes === undefined) throw new Error('Missing temporary file');
+    state.files.set(to, bytes);
+    state.files.delete(from);
+  },
+  openSync: () => 42, fsyncSync: () => {}, closeSync: () => {},
 }));
 
 import {
@@ -105,7 +112,9 @@ describe('an exact owner/slug target, never a global first-match fallback', () =
     await updateOwnedPost(alice, SLUG, { title: 'Alice updated' }, 'Alice updated body.');
     expect(state.files.get(file(alice))).not.toBe(aliceBytes);
     expect(state.files.get(file(bob))).toBe(bobBytes);
-    expect(state.write).toHaveBeenCalledWith(file(alice), expect.any(String), 'utf-8');
+    expect(state.write).toHaveBeenCalledWith(expect.stringContaining(`${file(alice)}.`), expect.any(String), {
+      encoding: 'utf-8', flag: 'wx', mode: 0o600, flush: true,
+    });
     await deleteOwnedPost(alice, SLUG);
     expect(state.files.has(file(alice))).toBe(false);
     expect(state.files.get(file(bob))).toBe(bobBytes);
@@ -259,6 +268,25 @@ describe('owner and slug are safe exact path components', () => {
     await updateOwnedPost(dotted, slug, { title: 'Updated dotted draft' });
     await deleteOwnedPost(dotted, slug);
     expect(state.files.has(file(dotted, slug))).toBe(false);
+  });
+});
+
+describe('committed owned revision timestamps', () => {
+  it('preserves a server-supplied revision timestamp across repeated snapshot writes', async () => {
+    seed(alice);
+    const updatedAt = '2026-09-19T23:55:00.000Z';
+    await updateOwnedPost(alice, SLUG, { title: 'Committed title', updatedAt }, 'Committed body.');
+    const first = state.files.get(file(alice));
+    await updateOwnedPost(alice, SLUG, { title: 'Committed title', updatedAt }, 'Committed body.');
+    expect(state.files.get(file(alice))).toBe(first);
+    expect(matter(first!).data.updatedAt).toBe(updatedAt);
+  });
+
+  it.each(['invalid', '2026-09-19', '', null, 123])('rejects noncanonical revision timestamp %j', async (updatedAt) => {
+    const before = seed(alice);
+    await expect(updateOwnedPost(alice, SLUG, { updatedAt })).rejects.toThrow('Invalid owned post revision timestamp');
+    expect(state.files.get(file(alice))).toBe(before);
+    expect(state.write).not.toHaveBeenCalled();
   });
 });
 

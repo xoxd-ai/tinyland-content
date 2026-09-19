@@ -10,8 +10,9 @@
 
 
 
-import { join } from 'path';
-import { readFileSync, existsSync, readdirSync, writeFileSync, unlinkSync } from 'fs';
+import { dirname, join } from 'path';
+import { randomUUID } from 'crypto';
+import { readFileSync, existsSync, readdirSync, writeFileSync, unlinkSync, renameSync, openSync, fsyncSync, closeSync } from 'fs';
 import matter from 'gray-matter';
 import { getContentConfig, getLogger, withSpan } from '../config.js';
 import type {
@@ -625,17 +626,69 @@ async function writePost(
   const { data: existingFrontmatter, content: existingContent } = matter(fileContent);
   if (owner !== undefined) assertPostOwnership(existingFrontmatter, owner);
 
-  const updatedFrontmatter = {
+  let updatedAt = new Date().toISOString();
+  if (owner !== undefined && data.updatedAt !== undefined) {
+    if (typeof data.updatedAt !== 'string' ||
+        !Number.isFinite(Date.parse(data.updatedAt)) ||
+        new Date(data.updatedAt).toISOString() !== data.updatedAt) {
+      throw new Error('Invalid owned post revision timestamp');
+    }
+    // A caller may replay a server-committed publication snapshot. Preserve
+    // that revision timestamp rather than manufacturing a different revision.
+    updatedAt = data.updatedAt;
+  }
+
+  const updatedFrontmatter: Record<string, unknown> = {
     ...existingFrontmatter,
     ...data,
-    updatedAt: new Date().toISOString(),
-    author: existingFrontmatter.author,
-    authorId: existingFrontmatter.authorId,
+    updatedAt,
   };
+  for (const key of ['author', 'authorId']) {
+    if (Object.prototype.hasOwnProperty.call(existingFrontmatter, key)) {
+      updatedFrontmatter[key] = existingFrontmatter[key];
+    } else {
+      // Absence is an immutable binding too. Besides preventing forgery, omit
+      // missing keys rather than passing undefined to the YAML serializer.
+      delete updatedFrontmatter[key];
+    }
+  }
 
   const updatedContent = content !== undefined ? content : existingContent;
   const updatedFile = matter.stringify(updatedContent, updatedFrontmatter);
-  writeFileSync(found.filePath, updatedFile, 'utf-8');
+  if (owner === undefined) {
+    writeFileSync(found.filePath, updatedFile, 'utf-8');
+  } else {
+    replaceOwnedPost(found.filePath, updatedFile);
+  }
+}
+
+/**
+ * Publish a complete Markdown revision, never truncate the currently readable
+ * one. The app records publication/deletion obligations separately; this is
+ * only the single-writer file replacement boundary, not a distributed lock.
+ */
+function replaceOwnedPost(filePath: string, bytes: string): void {
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporaryPath, bytes, {
+      encoding: 'utf-8', flag: 'wx', mode: 0o600, flush: true,
+    });
+    renameSync(temporaryPath, filePath);
+    syncPostDirectory(filePath);
+  } finally {
+    // A process crash may leave an ignored .tmp file. A reported write/rename
+    // failure must not leave it behind or replace the last complete revision.
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+  }
+}
+
+function syncPostDirectory(filePath: string): void {
+  const directory = openSync(dirname(filePath), 'r');
+  try {
+    fsyncSync(directory);
+  } finally {
+    closeSync(directory);
+  }
 }
 
 export async function updatePost(slug: string, data: Partial<Record<string, unknown>>, content?: string): Promise<void> {
@@ -697,6 +750,7 @@ export async function deleteOwnedPost(owner: PostOwner, slug: string): Promise<v
   const { data: metadata } = matter(readFileSync(found.filePath, 'utf-8'));
   assertPostOwnership(metadata, owner);
   unlinkSync(found.filePath);
+  syncPostDirectory(found.filePath);
 }
 
 
