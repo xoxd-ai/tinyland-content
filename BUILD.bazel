@@ -90,12 +90,17 @@ vitest_bin.vitest_test(
         "tsconfig.json",
         ":node_modules/vitest",
         "vitest.config.ts",
+        ".github/lanes.json",
+        "docs/gf-v4-qualification.candidate.yml",
         ":node_modules/@tummycrypt/tinyland-content-types",
         ":node_modules/@tummycrypt/tinyland-event-loader",
         ":node_modules/@tummycrypt/tinyland-product-loader",
         ":node_modules/@tummycrypt/tinyland-profile-loader",
         ":node_modules/@tummycrypt/tinyland-user-resolution",
-    ] + glob(["src/**/*.ts"]) + glob(["tests/**/*.test.ts", "tests/**/*.ts"]),
+    ] + glob(["src/**/*.ts"]) + glob(["tests/**/*.test.ts", "tests/**/*.ts"]) + glob([
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+    ]),
     args = [
         "run",
         "--reporter=verbose",
