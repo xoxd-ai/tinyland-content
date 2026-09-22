@@ -5,6 +5,7 @@ Dual-mode build: works with both pnpm (standalone) and Bazel (CI/production).
   Standalone: cd packages/tinyland-content && pnpm build
 """
 
+load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package", "npm_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("@tummycrypt_tinyland_content_npm//:defs.bzl", "npm_link_all_packages")
@@ -79,7 +80,7 @@ npm_package(
         ":tinyland_content",
     ],
     package = "@tummycrypt/tinyland-content",
-    version = "0.3.2",
+    version = "0.3.3",
     visibility = ["//visibility:public"],
 )
 
@@ -87,11 +88,15 @@ vitest_bin.vitest_test(
     name = "test",
     data = [
         ":node_modules",
+        "package.json",
+        "MODULE.bazel",
+        "BUILD.bazel",
         "tsconfig.json",
         ":node_modules/vitest",
         "vitest.config.ts",
         ".github/lanes.json",
         "docs/gf-v4-qualification.candidate.yml",
+        "scripts/check-package-artifact.mjs",
         ":node_modules/@tummycrypt/tinyland-content-types",
         ":node_modules/@tummycrypt/tinyland-event-loader",
         ":node_modules/@tummycrypt/tinyland-product-loader",
@@ -100,7 +105,7 @@ vitest_bin.vitest_test(
     ] + glob(["src/**/*.ts"]) + glob(["tests/**/*.test.ts", "tests/**/*.ts"]) + glob([
         ".github/workflows/*.yml",
         ".github/workflows/*.yaml",
-    ]),
+    ], allow_empty = True),
     args = [
         "run",
         "--reporter=verbose",
@@ -116,6 +121,20 @@ exports_files(
         "package.json",
         "tsconfig.json",
         "vitest.config.ts",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Inspect the complete Bazel-produced package, not a second npm/pnpm pack.
+js_test(
+    name = "package_artifact_test",
+    entry_point = "scripts/check-package-artifact.mjs",
+    args = ["$(rootpath :pkg)"],
+    data = [
+        ":pkg",
+        ":node_modules/publint",
+        "package.json",
+        "scripts/check-package-artifact.mjs",
     ],
     visibility = ["//visibility:public"],
 )

@@ -2,9 +2,18 @@ import { readFile, readdir } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 const readText = (path: string) => readFile(path, 'utf8');
-const release = '32e39ced0008edf4564ebeb173a5e8fbf069e28f';
-const legacyRelease = '61cd1338ca9dae8a25985c0a36ff7beb111449be';
+const release = 'ae836d8400d5784d74af4fecc020f225d1c2d08e';
 const candidatePath = 'docs/gf-v4-qualification.candidate.yml';
+
+async function workflowFiles(): Promise<string[]> {
+  try {
+    return (await readdir('.github/workflows')).filter((name) => /\.ya?ml$/.test(name)).sort();
+  } catch (error) {
+    // Git and Bazel runfiles omit a directory after its last workflow retires.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+}
 
 describe('inert GF v4 qualification source contract', () => {
   it('declares an actual test action and the existing package target', async () => {
@@ -13,7 +22,7 @@ describe('inert GF v4 qualification source contract', () => {
       actions: {
         'unit-tests': {
           command: 'test',
-          targets: ['//:test'],
+          targets: ['//:test', '//:package_artifact_test'],
           capability: 'rbe-linux-x86_64',
           result: { mode: 'status-only' },
         },
@@ -56,34 +65,44 @@ jobs:
       action_name: \${{ matrix.action }}`);
   });
 
-  it('keeps the candidate outside the active workflow directory', async () => {
-    const workflows = (await readdir('.github/workflows'))
-      .filter((name) => /\.ya?ml$/.test(name)).sort();
-    expect(workflows).toEqual(['ci.yml', 'publish.yml']);
-    for (const name of workflows) {
-      expect(await readText(`.github/workflows/${name}`)).not.toContain('spoke-ci-v4.yml');
+  it('retires provider-capable workflows without activating an unadmitted replacement', async () => {
+    const workflows = await workflowFiles();
+    expect(workflows).toEqual([]);
+    for (const name of ['ci.yml', 'publish.yml']) {
+      await expect(readText(`.github/workflows/${name}`)).rejects.toMatchObject({ code: 'ENOENT' });
     }
     expect(await readText(candidatePath)).toContain('# INERT SOURCE CANDIDATE');
   });
 
-  it('preserves the existing CI and package publication checks', async () => {
-    for (const path of ['.github/workflows/ci.yml', '.github/workflows/publish.yml']) {
-      const workflow = await readText(path);
-      expect(workflow).toContain(`js-bazel-package.yml@${legacyRelease}`);
-      expect(workflow).toContain('bazel_targets: "//:pkg //:test"');
-      expect(workflow).toContain('npm_publish_mode: disabled');
-    }
-    const publish = await readText('.github/workflows/publish.yml');
-    for (const command of [
-      'typecheck_command: pnpm typecheck',
-      'unit_test_command: pnpm test',
-      'build_command: pnpm build',
-      'package_check_command: pnpm check:package',
+  it('backs the finite plan with a real Bazel test and its exact source inputs', async () => {
+    const build = await readText('BUILD.bazel');
+    const testRule = build.match(/\bvitest_bin\.vitest_test\(\s*name\s*=\s*"test",([\s\S]*?)\n\)/)?.[1];
+    expect(testRule).toBeDefined();
+    expect(testRule).toMatch(/args\s*=\s*\[\s*"run",/);
+    for (const input of [
+      'package.json', 'MODULE.bazel', 'BUILD.bazel', '.github/lanes.json', candidatePath,
+      'tests/**/*.test.ts', '.github/workflows/*.yml', '.github/workflows/*.yaml',
     ]) {
-      expect(publish).toContain(command);
+      expect(testRule).toContain(`"${input}"`);
     }
-    const ci = await readText('.github/workflows/ci.yml');
-    expect(ci).toContain('unit_test_command: ""');
-    expect(ci).toContain('dry_run: true');
+    const packageRule = build.match(/\bnpm_package\(\s*name\s*=\s*"pkg",([\s\S]*?)\n\)/)?.[1];
+    expect(packageRule).toContain('":tinyland_content"');
+    expect(build).toMatch(/\bts_project\(\s*name\s*=\s*"tinyland_content",/);
+  });
+
+  it('runs locked publint on the real Bazel package without repacking or publication', async () => {
+    const build = await readText('BUILD.bazel');
+    const artifactRule = build.match(/\bjs_test\(\s*name\s*=\s*"package_artifact_test",([\s\S]*?)\n\)/)?.[1];
+    expect(artifactRule).toContain('entry_point = "scripts/check-package-artifact.mjs"');
+    expect(artifactRule).toContain('args = ["$(rootpath :pkg)"]');
+    for (const input of [':pkg', ':node_modules/publint', 'package.json', 'scripts/check-package-artifact.mjs']) {
+      expect(artifactRule).toContain(`"${input}"`);
+    }
+    const testRule = build.match(/\bvitest_bin\.vitest_test\(\s*name\s*=\s*"test",([\s\S]*?)\n\)/)?.[1];
+    expect(testRule).toContain('"scripts/check-package-artifact.mjs"');
+    const script = await readText('scripts/check-package-artifact.mjs');
+    expect(script).toContain('await publint({ pkgDir: packageDirectory, pack: false, strict: false })');
+    expect(script).toContain("message.type === 'error'");
+    expect(script).not.toMatch(/child_process|execSync|spawnSync|npm publish|pnpm publish/);
   });
 });
