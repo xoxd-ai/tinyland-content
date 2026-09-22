@@ -292,6 +292,38 @@ describe('ScheduledPublishingService', () => {
       expect(seen).toHaveLength(1);
       expect(seen[0].visibility).toBe('private');
     });
+
+    it('fails closed on YAML null visibility before publish hooks', async () => {
+      const service = await getService();
+      await service.initialize();
+
+      const seen: string[] = [];
+      service.setHooks({
+        onPublish: async (item) => {
+          seen.push(item.visibility);
+        },
+      });
+      await service.scheduleContent(
+        'blog',
+        'null-post',
+        '2020-01-01T00:00:00Z',
+        'UTC',
+        true,
+        'testuser'
+      );
+      fsStore['/test/content/blog/null-post.md'] = [
+        '---',
+        'title: Null Post',
+        'visibility:',
+        '---',
+        'Body',
+      ].join('\n');
+
+      const results = await service.processScheduledItems();
+      expect(results).toHaveLength(1);
+      expect(results[0].federated).toBe(true);
+      expect(seen).toEqual(['private']);
+    });
   });
 
   describe('processScheduledItems', () => {

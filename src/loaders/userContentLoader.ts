@@ -183,7 +183,7 @@ function passesBySlugGate(
   }
 
   return (
-    migrateVisibility(metadata.visibility as string | null | undefined) === 'public'
+    migrateVisibility((metadata.visibility as string | null | undefined) ?? undefined) === 'public'
   );
 }
 

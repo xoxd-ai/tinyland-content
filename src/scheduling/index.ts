@@ -374,7 +374,7 @@ export class ScheduledPublishingService {
               (parsed.data.author as string) || 'admin',
             // Fail closed before the item is handed to federation hooks.
             visibility: migrateVisibility(
-              parsed.data.visibility as string | null | undefined
+              (parsed.data.visibility as string | null | undefined) ?? undefined
             ),
           };
 

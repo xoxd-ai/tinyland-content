@@ -178,7 +178,7 @@ function loadContentType(
 
         // Fail closed: unknown, typo, and absent values resolve to 'private'.
         const visibility = migrateVisibility(
-          metadata.visibility as string | null | undefined
+          (metadata.visibility as string | null | undefined) ?? undefined
         );
         if (!shouldIncludeByVisibility(visibility, options)) {
           continue;
@@ -374,7 +374,7 @@ export async function loadProfiles(
       const authorHandle = (metadata.handle as string) || handle;
 
       const visibility = migrateVisibility(
-        metadata.visibility as string | null | undefined
+        (metadata.visibility as string | null | undefined) ?? undefined
       );
       if (!shouldIncludeByVisibility(visibility, options)) {
         continue;
@@ -533,7 +533,7 @@ async function loadPost(slug: string, owner?: PostOwner): Promise<ContentItem | 
       authorHandle: found.handle,
       // Fail closed: unknown, typo, and absent values resolve to 'private'.
       visibility: migrateVisibility(
-        metadata.visibility as string | null | undefined
+        (metadata.visibility as string | null | undefined) ?? undefined
       ),
     };
   } catch (error) {
@@ -574,7 +574,7 @@ export async function loadEventBySlug(slug: string): Promise<ContentItem | null>
       (metadata.visibility as string | undefined);
 
     const visibility = migrateVisibility(
-      metadata.visibility as string | null | undefined
+      (metadata.visibility as string | null | undefined) ?? undefined
     );
 
     return {
