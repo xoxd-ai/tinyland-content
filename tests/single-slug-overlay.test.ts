@@ -191,6 +191,129 @@ describe('single-slug loaders share the listing bundled+live overlay (TIN-1952)'
     expect(dispatch[0].frontmatter.title).toBe('Live MDX');
   });
 
+  it('does not resurrect a bundled public post when its live cross-extension override cannot be read', async () => {
+    const { loadSingleUserContent, findContentBySlug, getUserContentFilePath } =
+      await import('../src/loaders/userContentLoader.js');
+    const { loadBlogPost, loadBlogPostsSync } = await import(
+      '../src/loaders/blogLoader.js'
+    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    setupMockFs(
+      {
+        '/test/bundled/users/jess/blog/dispatch.md': post('Old Public', 'old public body'),
+        // The live directory lists dispatch.mdx, but readFileSync throws.
+      },
+      {
+        '/test/bundled/users': ['jess'],
+        '/test/bundled/users/jess/blog': ['dispatch.md'],
+        '/test/content/users': ['jess'],
+        '/test/content/users/jess/blog': ['dispatch.mdx'],
+      }
+    );
+
+    try {
+      expect(loadBlogPostsSync({ handle: 'jess', visibility: ['public'] })).toEqual([]);
+      expect(await loadBlogPost('dispatch', 'jess')).toBeNull();
+      expect(loadSingleUserContent('blog', 'dispatch', 'jess')).toBeNull();
+      expect(findContentBySlug('blog', 'dispatch')).toBeNull();
+      expect(getUserContentFilePath('blog', 'dispatch')).toBeNull();
+      expect(
+        loadSingleUserContent('blog', 'dispatch', 'jess', {
+          includeUnpublished: true,
+        })
+      ).toBeNull();
+      expect(
+        getUserContentFilePath('blog', 'dispatch', {
+          includeUnpublished: true,
+        })
+      ).toBeNull();
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[UserContentLoader] Failed to load /test/content/users/jess/blog/dispatch.mdx'
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('keeps a malformed live override private and does not log source excerpts', async () => {
+    const { loadSingleUserContent, findContentBySlug } = await import(
+      '../src/loaders/userContentLoader.js'
+    );
+    const { loadBlogPostsSync } = await import('../src/loaders/blogLoader.js');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const privateSource = '---\ntitle: [PRIVATE_SOURCE_SENTINEL\n---\nPRIVATE_BODY_SENTINEL';
+
+    setupMockFs(
+      {
+        '/test/bundled/users/jess/blog/dispatch.md': post('Old Public', 'old public body'),
+        '/test/content/users/jess/blog/dispatch.mdx': privateSource,
+      },
+      {
+        '/test/bundled/users': ['jess'],
+        '/test/bundled/users/jess/blog': ['dispatch.md'],
+        '/test/content/users': ['jess'],
+        '/test/content/users/jess/blog': ['dispatch.mdx'],
+      }
+    );
+
+    try {
+      expect(loadBlogPostsSync({ handle: 'jess', visibility: ['public'] })).toEqual([]);
+      expect(findContentBySlug('blog', 'dispatch')).toBeNull();
+      expect(
+        loadSingleUserContent('blog', 'dispatch', 'jess', {
+          includeUnpublished: true,
+        })
+      ).toBeNull();
+      expect(errorSpy).toHaveBeenCalled();
+      const diagnostic = JSON.stringify(errorSpy.mock.calls);
+      expect(diagnostic).not.toContain('PRIVATE_SOURCE_SENTINEL');
+      expect(diagnostic).not.toContain('PRIVATE_BODY_SENTINEL');
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('fails closed for duplicate live .md and .mdx slugs regardless of directory order', async () => {
+    const { loadSingleUserContent, findContentBySlug } = await import(
+      '../src/loaders/userContentLoader.js'
+    );
+    const { loadBlogPostsSync } = await import('../src/loaders/blogLoader.js');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      for (const order of [
+        ['dispatch.md', 'dispatch.mdx'],
+        ['dispatch.mdx', 'dispatch.md'],
+      ]) {
+        setupMockFs(
+          {
+            '/test/bundled/users/jess/blog/dispatch.md': post('Old Public', 'old public body'),
+            '/test/content/users/jess/blog/dispatch.md': post('Live MD', 'live md body'),
+            '/test/content/users/jess/blog/dispatch.mdx': post('Live MDX', 'live mdx body'),
+          },
+          {
+            '/test/bundled/users': ['jess'],
+            '/test/bundled/users/jess/blog': ['dispatch.md'],
+            '/test/content/users': ['jess'],
+            '/test/content/users/jess/blog': order,
+          }
+        );
+
+        expect(loadBlogPostsSync({ handle: 'jess' })).toEqual([]);
+        expect(loadSingleUserContent('blog', 'dispatch', 'jess')).toBeNull();
+        expect(
+          findContentBySlug('blog', 'dispatch', { includeUnpublished: true })
+        ).toBeNull();
+      }
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[UserContentLoader] Ambiguous content slug in /test/content/users/jess/blog'
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   // (c) unpublished/private is NOT resolvable by slug even when bundled — the
   // by-slug path applies the SAME public gate the listing applies. The public
   // API (loadBlogPost et al.) returns null; only auth-gated raw consumers that
