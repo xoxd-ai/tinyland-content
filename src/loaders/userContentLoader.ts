@@ -470,7 +470,11 @@ function loadFilesFromDir(
     const filePath = join(dir, file);
     try {
       const fileContent = readFileSync(filePath, 'utf-8');
-      const { data: metadata, content } = matter(fileContent);
+      // gray-matter's default no-options path caches a partial object before
+      // YAML parsing. A failed first parse can make a later lookup return the
+      // unparsed private source as ordinary content. Explicit YAML options
+      // preserve the default format while bypassing that cache entirely.
+      const { data: metadata, content } = matter(fileContent, { language: 'yaml' });
 
       // Key by slug (basename sans extension), NOT the full filename, so live
       // shadows bundled ACROSS extensions: a live `foo.mdx` must override a

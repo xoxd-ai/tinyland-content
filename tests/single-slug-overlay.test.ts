@@ -242,33 +242,40 @@ describe('single-slug loaders share the listing bundled+live overlay (TIN-1952)'
     );
     const { loadBlogPostsSync } = await import('../src/loaders/blogLoader.js');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const privateSource = '---\ntitle: [PRIVATE_SOURCE_SENTINEL\n---\nPRIVATE_BODY_SENTINEL';
-
-    setupMockFs(
-      {
-        '/test/bundled/users/jess/blog/dispatch.md': post('Old Public', 'old public body'),
-        '/test/content/users/jess/blog/dispatch.mdx': privateSource,
-      },
-      {
-        '/test/bundled/users': ['jess'],
-        '/test/bundled/users/jess/blog': ['dispatch.md'],
-        '/test/content/users': ['jess'],
-        '/test/content/users/jess/blog': ['dispatch.mdx'],
-      }
-    );
+    const malformedSources = [
+      '---\ntitle: [PRIVATE_SOURCE_SENTINEL\n---\nPRIVATE_BODY_SENTINEL',
+      '\uFEFF---\ntitle: [PRIVATE_SOURCE_SENTINEL\n---\nPRIVATE_BODY_SENTINEL',
+      '---\r\ntitle: [PRIVATE_SOURCE_SENTINEL\r\n---\r\nPRIVATE_BODY_SENTINEL',
+    ];
 
     try {
-      expect(loadBlogPostsSync({ handle: 'jess', visibility: ['public'] })).toEqual([]);
-      expect(findContentBySlug('blog', 'dispatch')).toBeNull();
-      expect(
-        loadSingleUserContent('blog', 'dispatch', 'jess', {
-          includeUnpublished: true,
-        })
-      ).toBeNull();
-      expect(errorSpy).toHaveBeenCalled();
-      const diagnostic = JSON.stringify(errorSpy.mock.calls);
-      expect(diagnostic).not.toContain('PRIVATE_SOURCE_SENTINEL');
-      expect(diagnostic).not.toContain('PRIVATE_BODY_SENTINEL');
+      for (const privateSource of malformedSources) {
+        errorSpy.mockClear();
+        setupMockFs(
+          {
+            '/test/bundled/users/jess/blog/dispatch.md': post('Old Public', 'old public body'),
+            '/test/content/users/jess/blog/dispatch.mdx': privateSource,
+          },
+          {
+            '/test/bundled/users': ['jess'],
+            '/test/bundled/users/jess/blog': ['dispatch.md'],
+            '/test/content/users': ['jess'],
+            '/test/content/users/jess/blog': ['dispatch.mdx'],
+          }
+        );
+
+        expect(loadBlogPostsSync({ handle: 'jess', visibility: ['public'] })).toEqual([]);
+        expect(findContentBySlug('blog', 'dispatch')).toBeNull();
+        expect(
+          loadSingleUserContent('blog', 'dispatch', 'jess', {
+            includeUnpublished: true,
+          })
+        ).toBeNull();
+        expect(errorSpy).toHaveBeenCalled();
+        const diagnostic = JSON.stringify(errorSpy.mock.calls);
+        expect(diagnostic).not.toContain('PRIVATE_SOURCE_SENTINEL');
+        expect(diagnostic).not.toContain('PRIVATE_BODY_SENTINEL');
+      }
     } finally {
       errorSpy.mockRestore();
     }
