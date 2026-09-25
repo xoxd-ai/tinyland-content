@@ -8,6 +8,7 @@ Dual-mode build: works with both pnpm (standalone) and Bazel (CI/production).
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package", "npm_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("@tummycrypt_tinyland_content_npm//:defs.bzl", "npm_link_all_packages")
+load("@tummycrypt_tinyland_content_npm//:publint/package_json.bzl", publint_bin = "bin")
 load("@tummycrypt_tinyland_content_npm//:vitest/package_json.bzl", vitest_bin = "bin")
 
 npm_link_all_packages(name = "node_modules")
@@ -112,5 +113,23 @@ exports_files(
         "tsconfig.json",
         "vitest.config.ts",
     ],
+    visibility = ["//visibility:public"],
+)
+
+# TIN-4627/AP3: the qualification target the tinyland.dev candidate-image
+# publisher's own-workspace gate (qualify-nonprod-canonical-sources.sh) expects
+# from this source. Wraps the same check this repo already runs at
+# prepublish time (`pnpm check:package` = `publint`), pointed at the actual
+# assembled :pkg artifact instead of the source tree, the way tinyland-auth
+# (AP3, xoxd-ai/tinyland-auth#61) declares it.
+
+publint_bin.publint_test(
+    name = "package_artifact_test",
+    args = [
+        "$(rootpath :pkg)",
+        "--pack",
+        "false",
+    ],
+    data = [":pkg"],
     visibility = ["//visibility:public"],
 )
