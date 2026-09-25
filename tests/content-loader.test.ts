@@ -149,6 +149,128 @@ describe('ContentLoaderService', () => {
     });
   });
 
+  describe('loadUserContentPage (TIN-3704)', () => {
+    const isEligible = (item: { metadata: Record<string, unknown> }) =>
+      item.metadata.deliver === true;
+
+    function seedPageContent(heldBack: number, eligible = 5, extra: string[] = []): void {
+      const rows = [
+        ...Array.from({ length: heldBack }, (_, index) =>
+          `held-${String(index).padStart(3, '0')}`),
+        ...Array.from({ length: eligible }, (_, index) =>
+          `eligible-${String(index).padStart(3, '0')}`),
+        ...extra,
+      ];
+      const files = Object.fromEntries(rows.map((slug) => [
+        `/test/content/users/testuser/blog/${slug}.md`,
+        `---\ntitle: ${slug}\npublishedAt: "${slug.startsWith('held-')
+          ? '2026-01-01T00:00:00.000Z'
+          : '2025-01-01T00:00:00.000Z'}"\nvisibility: public\ndeliver: ${slug.startsWith('eligible-')}\n---\n${slug}`,
+      ]));
+      setupMockFs(files, {
+        '/test/content/users': ['testuser'],
+        '/test/content/users/testuser/blog': rows.map((slug) => `${slug}.md`),
+      });
+    }
+
+    it('filters before slicing and returns exact totals across cursor boundaries', async () => {
+      seedPageContent(126);
+      const { loadUserContent, loadUserContentPage } =
+        await import('../src/services/ContentLoaderService.js');
+
+      const first = await loadUserContentPage('testuser', {
+        predicate: isEligible,
+        limit: 2,
+      });
+      seedPageContent(126, 5, ['eligible-001a']);
+      const second = await loadUserContentPage('testuser', {
+        predicate: isEligible,
+        limit: 2,
+        cursor: first.nextCursor!,
+      });
+      const last = await loadUserContentPage('testuser', {
+        predicate: isEligible,
+        limit: 2,
+        cursor: second.nextCursor!,
+      });
+
+      expect([first, second, last].map((page) => [
+        page.items.map((item) => item.slug), page.totalItems, page.nextCursor !== null,
+      ])).toEqual([
+        [['eligible-000', 'eligible-001'], 5, true],
+        [['eligible-001a', 'eligible-002'], 6, true],
+        [['eligible-003', 'eligible-004'], 6, false],
+      ]);
+      expect([first, second, last].flatMap((page) => page.items)
+        .filter((item) => item.slug === 'eligible-001a')).toHaveLength(1);
+      const boundaryPages = await Promise.all(
+        (['minId', 'maxId'] as const).map((bound) => loadUserContentPage(
+          'testuser',
+          { predicate: isEligible, [bound]: '2025-06-01T00:00:00.000Z' }
+        ))
+      );
+      expect(boundaryPages.map((page) => page.totalItems)).toEqual([6, 0]);
+      await expect(loadUserContentPage('testuser', {
+        predicate: isEligible,
+        cursor: 'not-a-cursor',
+      })).rejects.toThrow(RangeError);
+      for (const options of [
+        { limit: 0 }, { limit: 1.5 }, { limit: 101 },
+        { limit: Number.MAX_SAFE_INTEGER }, { limit: Number.MAX_SAFE_INTEGER + 1 },
+        { minId: 'not-a-date' }, { maxId: 'not-a-date' },
+      ]) {
+        await expect(loadUserContentPage('testuser', {
+          predicate: isEligible,
+          ...options,
+        })).rejects.toThrow(RangeError);
+      }
+      await expect(loadUserContentPage('testuser', {
+        predicate: isEligible,
+        cursor: 'a'.repeat(4097),
+      })).rejects.toThrow(RangeError);
+      await expect(loadUserContentPage('testuser', {
+        predicate: isEligible,
+        limit: 100,
+      })).resolves.toMatchObject({ totalItems: 6 });
+
+      expect((await loadUserContent('testuser', { limit: 2 }))
+        .map((item) => item.slug)).toEqual(['held-000', 'held-001']);
+
+      const row = mockFiles['/test/content/users/testuser/blog/eligible-000.md'];
+      setupMockFs({
+        '/test/content/users/testuser/blog/bar.md': row,
+        '/test/content/users/testuser/blog/foo.md': row,
+        '/test/content/users/testuser/blog/foo.mdx': row,
+      }, {
+        '/test/content/users': ['testuser'],
+        '/test/content/users/testuser/blog': ['bar.md', 'foo.md', 'foo.mdx'],
+      });
+      const duplicateFirst = await loadUserContentPage('testuser', {
+        predicate: isEligible, limit: 1,
+      });
+      const duplicateSecond = await loadUserContentPage('testuser', {
+        predicate: isEligible, limit: 1, cursor: duplicateFirst.nextCursor!,
+      });
+      expect([duplicateFirst, duplicateSecond].map((page) => [
+        page.items.map((item) => item.slug), page.totalItems, page.nextCursor !== null,
+      ])).toEqual([[['bar'], 2, true], [['foo'], 2, false]]);
+    });
+
+    it('returns an empty page for no content and for all-held-back content', async () => {
+      const { loadUserContentPage } =
+        await import('../src/services/ContentLoaderService.js');
+      const expected = { items: [], totalItems: 0, nextCursor: null };
+
+      setupMockFs({}, {});
+      expect(await loadUserContentPage('testuser', { predicate: isEligible }))
+        .toEqual(expected);
+
+      seedPageContent(3, 0);
+      expect(await loadUserContentPage('testuser', { predicate: isEligible }))
+        .toEqual(expected);
+    });
+  });
+
   describe('loadPostBySlug', () => {
     it('should load a single post by slug', async () => {
       const mdContent = [
