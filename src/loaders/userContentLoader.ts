@@ -183,7 +183,7 @@ function passesBySlugGate(
   }
 
   return (
-    migrateVisibility(metadata.visibility as string | null | undefined) === 'public'
+    migrateVisibility((metadata.visibility as string | null | undefined) ?? undefined) === 'public'
   );
 }
 
@@ -447,12 +447,34 @@ function loadFilesFromDir(
     extensions.some((ext) => f.endsWith(ext))
   );
 
+  const filesBySlug = new Map<string, string[]>();
   for (const file of files) {
+    const slug = file.replace(/\.(md|mdx)$/, '');
+    const candidates = filesBySlug.get(slug) ?? [];
+    candidates.push(file);
+    filesBySlug.set(slug, candidates);
+  }
+
+  for (const [slug, candidates] of filesBySlug) {
+    // A live filename owns its slug even if the file cannot be read or parsed.
+    // Otherwise a failed live override silently resurrects an older bundled
+    // public copy. Likewise, two same-directory extensions are ambiguous: do
+    // not let readdir order choose which one becomes public.
+    bySlug.delete(slug);
+    if (candidates.length !== 1) {
+      console.error(`[UserContentLoader] Ambiguous content slug in ${dir}`);
+      continue;
+    }
+
+    const file = candidates[0];
     const filePath = join(dir, file);
     try {
       const fileContent = readFileSync(filePath, 'utf-8');
-      const { data: metadata, content } = matter(fileContent);
-      const slug = file.replace(/\.(md|mdx)$/, '');
+      // gray-matter's default no-options path caches a partial object before
+      // YAML parsing. A failed first parse can make a later lookup return the
+      // unparsed private source as ordinary content. Explicit YAML options
+      // preserve the default format while bypassing that cache entirely.
+      const { data: metadata, content } = matter(fileContent, { language: 'yaml' });
 
       // Key by slug (basename sans extension), NOT the full filename, so live
       // shadows bundled ACROSS extensions: a live `foo.mdx` must override a
@@ -466,11 +488,10 @@ function loadFilesFromDir(
         filePath,
         ownerHandle: handle,
       });
-    } catch (error) {
-      console.error(
-        `[UserContentLoader] Failed to load ${filePath}:`,
-        error
-      );
+    } catch {
+      // gray-matter errors can embed private source excerpts. Keep the
+      // diagnostic closed; the filename is enough to locate the bad override.
+      console.error(`[UserContentLoader] Failed to load ${filePath}`);
     }
   }
 }

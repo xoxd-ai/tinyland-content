@@ -5,10 +5,10 @@ Dual-mode build: works with both pnpm (standalone) and Bazel (CI/production).
   Standalone: cd packages/tinyland-content && pnpm build
 """
 
+load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package", "npm_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("@tummycrypt_tinyland_content_npm//:defs.bzl", "npm_link_all_packages")
-load("@tummycrypt_tinyland_content_npm//:publint/package_json.bzl", publint_bin = "bin")
 load("@tummycrypt_tinyland_content_npm//:vitest/package_json.bzl", vitest_bin = "bin")
 
 npm_link_all_packages(name = "node_modules")
@@ -80,7 +80,7 @@ npm_package(
         ":tinyland_content",
     ],
     package = "@tummycrypt/tinyland-content",
-    version = "0.3.2",
+    version = "0.3.3",
     visibility = ["//visibility:public"],
 )
 
@@ -88,15 +88,24 @@ vitest_bin.vitest_test(
     name = "test",
     data = [
         ":node_modules",
+        "package.json",
+        "MODULE.bazel",
+        "BUILD.bazel",
         "tsconfig.json",
         ":node_modules/vitest",
         "vitest.config.ts",
+        ".github/lanes.json",
+        "docs/gf-v4-qualification.candidate.yml",
+        "scripts/check-package-artifact.mjs",
         ":node_modules/@tummycrypt/tinyland-content-types",
         ":node_modules/@tummycrypt/tinyland-event-loader",
         ":node_modules/@tummycrypt/tinyland-product-loader",
         ":node_modules/@tummycrypt/tinyland-profile-loader",
         ":node_modules/@tummycrypt/tinyland-user-resolution",
-    ] + glob(["src/**/*.ts"]) + glob(["tests/**/*.test.ts", "tests/**/*.ts"]),
+    ] + glob(["src/**/*.ts"]) + glob(["tests/**/*.test.ts", "tests/**/*.ts"]) + glob([
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+    ], allow_empty = True),
     args = [
         "run",
         "--reporter=verbose",
@@ -116,20 +125,16 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 
-# TIN-4627/AP3: the qualification target the tinyland.dev candidate-image
-# publisher's own-workspace gate (qualify-nonprod-canonical-sources.sh) expects
-# from this source. Wraps the same check this repo already runs at
-# prepublish time (`pnpm check:package` = `publint`), pointed at the actual
-# assembled :pkg artifact instead of the source tree, the way tinyland-auth
-# (AP3, xoxd-ai/tinyland-auth#61) declares it.
-
-publint_bin.publint_test(
+# Inspect the complete Bazel-produced package, not a second npm/pnpm pack.
+js_test(
     name = "package_artifact_test",
-    args = [
-        "$(rootpath :pkg)",
-        "--pack",
-        "false",
+    entry_point = "scripts/check-package-artifact.mjs",
+    args = ["$(rootpath :pkg)"],
+    data = [
+        ":pkg",
+        ":node_modules/publint",
+        "package.json",
+        "scripts/check-package-artifact.mjs",
     ],
-    data = [":pkg"],
     visibility = ["//visibility:public"],
 )

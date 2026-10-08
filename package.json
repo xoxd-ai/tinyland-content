@@ -1,6 +1,6 @@
 {
   "name": "@tummycrypt/tinyland-content",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Content management services for markdown-based content with versioning, scheduling, and relationship resolution",
   "type": "module",
   "license": "Zlib AND LicenseRef-Tinyland-Proprietary",
@@ -36,8 +36,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "check:package": "publint",
-    "prepublishOnly": "pnpm build && pnpm check:package"
+    "check:package": "publint"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
@@ -67,10 +66,6 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
   },
   "repository": {
     "type": "git",

@@ -93,6 +93,10 @@ export {
   loadVideos,
   loadProfiles,
   loadPostBySlug,
+  loadOwnedPost,
+  updateOwnedPost,
+  adoptReviewedOwnedPost,
+  deleteOwnedPost,
   loadEventBySlug,
   updatePost,
   updateEvent,
@@ -102,6 +106,7 @@ export {
   extractOrganizerHandle,
   createContentLoader,
 } from './services/index.js';
+export type { PostOwner, ReviewedOwnedPostAdoption, AdoptedOwnedPost } from './services/index.js';
 
 export {
   resolvePostRelationships,
