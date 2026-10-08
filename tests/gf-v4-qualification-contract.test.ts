@@ -65,11 +65,22 @@ jobs:
       action_name: \${{ matrix.action }}`);
   });
 
-  it('retires provider-capable workflows without activating an unadmitted replacement', async () => {
-    const workflows = await workflowFiles();
-    expect(workflows).toEqual([]);
-    for (const name of ['ci.yml', 'publish.yml']) {
-      await expect(readText(`.github/workflows/${name}`)).rejects.toMatchObject({ code: 'ENOENT' });
+  it('keeps one validation-only CI caller and no publication workflow (RU8)', async () => {
+    // RU4 keeps remote CI triggered; RU8 removes every publish lane. The GF
+    // v4 caller stays inert under docs/ until its admission is verified.
+    expect(await workflowFiles()).toEqual(['ci.yml']);
+    await expect(readText('.github/workflows/publish.yml')).rejects.toMatchObject({ code: 'ENOENT' });
+    const workflow = await readText('.github/workflows/ci.yml');
+    expect(workflow).not.toContain('spoke-ci-v4.yml');
+    expect(workflow).not.toMatch(/^\s*release:/m);
+    expect(workflow).toContain('npm_publish_mode: disabled');
+    expect(workflow).toContain('dry_run: true');
+    expect(workflow).not.toMatch(
+      /github_package_name|packages:\s*write|id-token:\s*write|NPM_TOKEN|TINYLAND_GITHUB_PACKAGES_TOKEN|npm publish|pnpm publish/,
+    );
+    expect(workflow).not.toMatch(/_command:\s*"true"/);
+    for (const target of ['//:test', '//:pkg', '//:package_artifact_test']) {
+      expect(workflow).toContain(target);
     }
     expect(await readText(candidatePath)).toContain('# INERT SOURCE CANDIDATE');
   });
