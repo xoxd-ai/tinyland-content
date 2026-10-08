@@ -1,30 +1,60 @@
 # Changelog
 
-## 0.3.3 — Unreleased candidate
+## 0.4.0 — 2026-10-08
 
-Prepared for the existing-admin, single-writer mothership launch under TIN-4177.
-This entry describes retained source changes since released 0.3.2, not a
-published artifact or runtime rollout.
+Minor release that lands the retained owner-scoped candidate (5eb83e9, the
+source the Mothership writer was built from) on `main` so `xoxd-ai/tinyland.dev`
+can pin a released module instead of a source override (RU11). The framework
+stack is unchanged (TypeScript 5.9, Node >= 22); the RU1 stack uplift is a
+later, major release. Bazel module `tummycrypt_tinyland_content` is the only
+distribution path (RU6); nothing is published to npmjs or GitHub Packages.
 
-- Add `PostOwner`, `loadOwnedPost`, `updateOwnedPost` and `deleteOwnedPost`
-  exports, including the service factory. Owned operations require matching
+The 0.3.3 version below was prepared but never tagged or registered; its
+changes ship here. Everything it lists is included in 0.4.0.
+
+Added
+
+- `PostOwner`, `loadOwnedPost`, `updateOwnedPost` and `deleteOwnedPost`, also
+  on the `createContentLoader()` factory. Owned operations require matching
   stored stable author identity and the exact owner/slug live Markdown path;
   they never fall back to another owner or bundled content.
-- Preserve complete owned revisions through flushed temporary-file replacement
-  and directory synchronization; synchronize owned deletions and preserve valid
-  server-supplied revision timestamps for replay.
-- Preserve absent author metadata without passing `undefined` to the YAML
-  serializer, while retaining immutable stored authorship and existing global
-  admin API signatures and first-match behavior.
-- Retire provider-capable legacy CI/publish workflows, `publishConfig` and the
-  publication lifecycle hook under TIN-89. Bzlmod/BCR is the sole first-party
-  delivery authority; JavaScript package/build mechanics remain.
-- Keep the schema-3 GF qualification plan and pinned caller inert under `docs/`.
-  No replacement workflow is activated before released-contract/admission
-  verification. Metadata parity and the actual Bazel test remain in the graph.
-- Add `//:package_artifact_test`: locked publint inspects the actual Bazel
-  package with packing disabled, plus manifest parity and nonempty generated
-  JavaScript/declaration entrypoint checks. This target has not been executed.
+- `adoptReviewedOwnedPost` with `ReviewedOwnedPostAdoption` and
+  `AdoptedOwnedPost`: proof-bound adoption of a reviewed, id-less retained live
+  post into the owner-scoped path. The caller supplies `verifyProof`; the
+  source must be a regular file and the write is a complete flushed revision.
+
+Changed (behavior, no signature change)
+
+- User content loading fails closed when a live directory has both
+  `<slug>.md` and `<slug>.mdx`: neither is served and an error is logged.
+  A live file that cannot be read or parsed still shadows a bundled copy of
+  the same slug, so a broken override cannot resurrect an older public
+  bundled post. Parse failures log only the file path, not the gray-matter
+  error (which can quote private source).
+- `null` frontmatter `visibility` is normalized to absent before
+  `migrateVisibility`, so it fails closed to `private` the same way in the
+  blog loader, the by-slug gate and scheduled publishing.
+
+CI and distribution
+
+- `publish.yml` removed (RU8). `ci.yml` stays as a validation-only caller of
+  `js-bazel-package.yml@v3.2.1`: `bazel test //:test`, `bazel build //:pkg`
+  and `bazel test //:package_artifact_test`, with npm publication disabled
+  and no package-write permission.
+- `publishConfig` and `prepublishOnly` removed from `package.json`.
+- `//:package_artifact_test` is now a `js_test` that runs locked publint on
+  the real `//:pkg` tree (no repack) and checks manifest parity and every
+  declared entrypoint. The target name is unchanged.
+- `MODULE.bazel.lock` is committed.
+
+Migration
+
+- No consumer change is required: existing exports, signatures and the export
+  map are unchanged. Consumers move from 0.2.x or 0.3.x by bumping the
+  `bazel_dep` to `0.4.0`. Repos with a `.mdx`/`.md` pair for one slug in the
+  same user directory must remove one of them.
+
+## 0.3.3 — prepared, never released
 
 See [candidate compatibility and release notes](docs/releases/content-0.3.3-candidate.md)
-for scope, version observations and remaining release evidence.
+for the original scope notes. Superseded by 0.4.0.
