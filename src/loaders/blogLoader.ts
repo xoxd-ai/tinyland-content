@@ -316,7 +316,7 @@ function matchesFilters(
 
   // Fail closed: unknown, typo, and absent values resolve to 'private'.
   const postVisibility = migrateVisibility(
-    frontmatter.visibility as string | null | undefined
+    (frontmatter.visibility as string | null | undefined) ?? undefined
   );
   if (options.visibility && !options.visibility.includes(postVisibility)) {
     return false;

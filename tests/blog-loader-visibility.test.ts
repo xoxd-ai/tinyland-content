@@ -55,13 +55,13 @@ describe('blogLoader visibility filter fails closed (TIN-2656)', () => {
     vi.clearAllMocks();
   });
 
-  const postWith = (visibility?: string) =>
+  const postWith = (visibility?: string | null) =>
     [
       '---',
       'title: Test Post',
       'author: testuser',
       'publishedAt: "2025-01-01"',
-      ...(visibility ? [`visibility: ${visibility}`] : []),
+      ...(visibility === null ? ['visibility:'] : visibility ? [`visibility: ${visibility}`] : []),
       '---',
       'Body',
     ].join('\n');
@@ -142,5 +142,29 @@ describe('blogLoader visibility filter fails closed (TIN-2656)', () => {
       visibility: ['private'],
     });
     expect(privatePosts.map((p) => p.slug)).toEqual(['default-post']);
+  });
+
+  it('treats a YAML null visibility as private, never public', async () => {
+    const { loadBlogPostsSync } = await import('../src/loaders/blogLoader.js');
+    const { loadSingleUserContent } = await import('../src/loaders/userContentLoader.js');
+
+    setupMockFs(
+      {
+        '/test/content/users/testuser/blog/null-post.md': postWith(null),
+      },
+      {
+        '/test/content/users': ['testuser'],
+        '/test/content/users/testuser/blog': ['null-post.md'],
+      }
+    );
+
+    expect(loadBlogPostsSync({ handle: 'testuser', visibility: ['public'] })).toEqual([]);
+    expect(
+      loadBlogPostsSync({ handle: 'testuser', visibility: ['private'] }).map((p) => p.slug)
+    ).toEqual(['null-post']);
+    expect(loadSingleUserContent('blog', 'null-post', 'testuser')).toBeNull();
+    expect(
+      loadSingleUserContent('blog', 'null-post', 'testuser', { includeUnpublished: true })
+    ).not.toBeNull();
   });
 });

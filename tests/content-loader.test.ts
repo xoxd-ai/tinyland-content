@@ -635,6 +635,23 @@ describe('ContentLoaderService', () => {
       expect(post!.visibility).toBe('private');
     });
 
+    it('loadPostBySlug resolves YAML null visibility to private', async () => {
+      const { loadPostBySlug } = await import('../src/services/ContentLoaderService.js');
+
+      setupMockFs(
+        {
+          '/test/content/users/testuser/blog/null-post.md': postWith(undefined, ['visibility:']),
+        },
+        {
+          '/test/content/users': ['testuser'],
+          '/test/content/users/testuser/blog': ['null-post.md'],
+        }
+      );
+
+      const post = await loadPostBySlug('null-post');
+      expect(post?.visibility).toBe('private');
+    });
+
     it('loadPostBySlug keeps legacy published visibility public', async () => {
       const { loadPostBySlug } = await import('../src/services/ContentLoaderService.js');
 
@@ -694,6 +711,24 @@ describe('ContentLoaderService', () => {
       expect(event).not.toBeNull();
       expect(event!.visibility).toBe('private');
       expect(event!.fediverseVisibility).toBe('private');
+    });
+
+    it('loadEventBySlug resolves YAML null visibility to private', async () => {
+      const { loadEventBySlug } = await import('../src/services/ContentLoaderService.js');
+
+      setupMockFs(
+        {
+          '/test/content/users/testuser/events/null-event.md': postWith(undefined, ['visibility:']),
+        },
+        {
+          '/test/content/users': ['testuser'],
+          '/test/content/users/testuser/events': ['null-event.md'],
+        }
+      );
+
+      const event = await loadEventBySlug('null-event');
+      expect(event?.visibility).toBe('private');
+      expect(event?.fediverseVisibility).toBe('private');
     });
   });
 
