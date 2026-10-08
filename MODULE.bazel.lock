@@ -495,7 +495,7 @@
     "@@aspect_rules_ts+//ts:extensions.bzl%ext": {
       "general": {
         "bzlTransitiveDigest": "kpFi+ae3stSvLHgS7Fiwn/tb3J3dDqMOi1EP3tJ/TKY=",
-        "usagesDigest": "im6lF5cMjGAYnS4u3N4yZRu5+4zJuglRsK2egroXUiA=",
+        "usagesDigest": "TnbqV6IHECi2RKEbnQ7Pv7ZhaBdZWrpoMe0zKzIylHc=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -764,7 +764,7 @@
     "@@rules_nodejs+//nodejs:extensions.bzl%node": {
       "general": {
         "bzlTransitiveDigest": "4pUxCNc22K4I+6+4Nxu52Hur12tFRfa1JMsN5mdDv60=",
-        "usagesDigest": "QN8EI0C30ZQ/VnqiUSlH7fJen3ozLp+nv1Nssqqw6ZM=",
+        "usagesDigest": "ffCBhQt6VtWqdLq8PGb6WAADY9z+JJL53CE2neRmPcc=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
