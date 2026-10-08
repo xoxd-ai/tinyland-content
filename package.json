@@ -23,6 +23,10 @@
     "./scheduling": {
       "types": "./dist/scheduling/index.d.ts",
       "import": "./dist/scheduling/index.js"
+    },
+    "./activity-feed": {
+      "types": "./dist/activity-feed/index.d.ts",
+      "import": "./dist/activity-feed/index.js"
     }
   },
   "files": [
