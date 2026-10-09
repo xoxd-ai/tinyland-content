@@ -247,3 +247,25 @@ export {
   getConfig as getUserResolutionConfig,
   resetConfig as resetUserResolutionConfig,
 } from '@tummycrypt/tinyland-user-resolution';
+
+// --- Activity feed (merged from tummycrypt_tinyland_activity_feed 0.2.x) ---
+// The full original API, including configure/getConfig/resetConfig, is the
+// ./activity-feed subpath export. The facade aliases the config helpers so they
+// do not collide with the other merged modules.
+export type {
+  ActivityItem,
+  BlogPostItem,
+  ProfileItem,
+  ProductItem,
+  ActivityFeedConfig,
+} from './activity-feed/index.js';
+export {
+  getRecentActivityServer,
+  getActivityByTypeServer,
+  getActivityByCategoryServer,
+  getActivityByTagServer,
+  searchActivityServer,
+  configure as configureActivityFeed,
+  getConfig as getActivityFeedConfig,
+  resetConfig as resetActivityFeedConfig,
+} from './activity-feed/index.js';
