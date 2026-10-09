@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-10-08
+
+Minor release that folds the retired `tummycrypt_tinyland_activity_feed`
+module into this package (RU2, RU7). Additive only: no existing export or
+signature changes, and the framework stack is unchanged (TypeScript 5.9,
+Node >= 22), so this is not the RU1 major. Bazel module
+`tummycrypt_tinyland_content` is the only distribution path (RU6).
 
 Added
 
@@ -21,7 +27,7 @@ Migration (activity feed consumers)
 
 - Drop `bazel_dep(name = "tummycrypt_tinyland_activity_feed", ...)`, its
   `single_version_override` and its `npm_link_package`, and depend on the
-  `tummycrypt_tinyland_content` release that carries this entry.
+  `tummycrypt_tinyland_content` 0.5.0 or later.
 - Replace `from '@tummycrypt/tinyland-activity-feed'` with
   `from '@tummycrypt/tinyland-content/activity-feed'` (same names), or import
   the aliased names from `@tummycrypt/tinyland-content`.
