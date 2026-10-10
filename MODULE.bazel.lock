@@ -321,8 +321,6 @@
     "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tar.bzl/0.5.1/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tummycrypt_tinyland_content_types/0.3.1/MODULE.bazel": "f00df39f52760846f6832cc60c2e37c3bd2ade276293f6b36201e88685e54be7",
     "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tummycrypt_tinyland_content_types/0.3.1/source.json": "0480583fdd54657c8f7a31ce14b9e84066b78e92109d87a4bb2aa5fdc9ca969b",
-    "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tummycrypt_tinyland_product_loader/0.2.3/MODULE.bazel": "d7beb425b44758e2f79accf9836e0d9d019a05069fa68bc175a23adb61a5b9b5",
-    "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tummycrypt_tinyland_product_loader/0.2.3/source.json": "7c37653537664c90e430f1c1bf1f3bfa062188925f6b5f5b2eb62079a1f23417",
     "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tummycrypt_tinyland_profile_loader/0.2.3/MODULE.bazel": "1981ce40c2077785df4324e59a8070ae0481f6a3ea0151f18988ff7ff57a8999",
     "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tummycrypt_tinyland_profile_loader/0.2.3/source.json": "fb619ce7551c0db038c43aadef1bbaf0ef596300ec860e44c7323beeaf9d73df",
     "https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main/modules/tummycrypt_tinyland_user_resolution/0.2.3/MODULE.bazel": "a3032c9aa32892b4c1b72ec975df49eed4986c744d67413bebb4da26abc695be",
@@ -339,7 +337,7 @@
     "@@aspect_rules_js+//npm:extensions.bzl%pnpm": {
       "general": {
         "bzlTransitiveDigest": "+38sdUshoDaaBOpNBG17zT25s0y5uiGlxqyEtzgmzVs=",
-        "usagesDigest": "ozWKGgp60WCf0aOZhiTONSEt+W5MGSrU6tkUZy1cn7Y=",
+        "usagesDigest": "fCAJkX7lmPAb3usXO53WDEr/n+LvTjMqSc/4FLfXSV4=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -493,7 +491,7 @@
     "@@aspect_rules_ts+//ts:extensions.bzl%ext": {
       "general": {
         "bzlTransitiveDigest": "kpFi+ae3stSvLHgS7Fiwn/tb3J3dDqMOi1EP3tJ/TKY=",
-        "usagesDigest": "9Sd2tC5Yv0EX+V7r1JomStRxH3hZ3n+mLkynngeRxWo=",
+        "usagesDigest": "Glu8dTnOYMjfii+BUV16bbJbhSLlLRGbHhgJFlkbtW0=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -762,7 +760,7 @@
     "@@rules_nodejs+//nodejs:extensions.bzl%node": {
       "general": {
         "bzlTransitiveDigest": "4pUxCNc22K4I+6+4Nxu52Hur12tFRfa1JMsN5mdDv60=",
-        "usagesDigest": "ZPW2gyuWk32iBFZI0FQkh+Oo1YeVfTCw059WkjD8RUo=",
+        "usagesDigest": "/BWu1EGmtmuOkC7I92YYdDUkmsUzt5hsKOKYe/DHyD8=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
