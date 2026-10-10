@@ -184,8 +184,10 @@ export function contentItemToTypedContent<T extends Record<string, unknown>>(ite
   return item;
 }
 
-// --- Event loader re-exports (from tinyland-event-loader) ---
-export type { EventContent, EventContentFrontmatter, EventLoaderConfig } from '@tummycrypt/tinyland-event-loader';
+// --- Event loader (merged from tummycrypt_tinyland_event_loader 0.2.x) ---
+// The full original API, including configure/getConfig/resetConfig, is the
+// ./event-loader subpath export. The facade keeps its existing aliased names.
+export type { EventContent, EventContentFrontmatter, EventLoaderConfig } from './event-loader/index.js';
 export {
   loadEventsServer,
   getUpcomingEventsServer,
@@ -197,7 +199,7 @@ export {
   configure as configureEventLoader,
   getConfig as getEventLoaderConfig,
   resetConfig as resetEventLoaderConfig,
-} from '@tummycrypt/tinyland-event-loader';
+} from './event-loader/index.js';
 
 // --- Product loader re-exports (from tinyland-product-loader) ---
 export type { Product, ProductFrontmatter, ProductLoaderConfig } from '@tummycrypt/tinyland-product-loader';
