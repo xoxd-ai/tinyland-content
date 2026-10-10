@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.8.0 — 2026-10-10
+
+Minor release that folds the retired `tummycrypt_tinyland_profile_loader`
+module into this package (RU2, RU7). Additive for consumers: no existing
+export or signature changes, and the framework stack is unchanged
+(TypeScript 5.9, Node >= 22), so this is not the RU1 major. Bazel module
+`tummycrypt_tinyland_content` is the only distribution path (RU6).
+
+Added
+
+- Profile loader, merged from the retired `tummycrypt_tinyland_profile_loader`
+  module (`@tummycrypt/tinyland-profile-loader` 0.2.3, repo
+  `xoxd-ai/tinyland-profile-loader`, archived). Sources and tests are
+  byte-identical to the 0.2.3 release (and to the tinyland.dev monorepo copy)
+  apart from the test import paths.
+  - New subpath export `@tummycrypt/tinyland-content/profile-loader` with the
+    original API: `configure`, `getConfig`, `resetConfig`,
+    `loadProfilesServer`, `getPublishedProfilesServer`,
+    `getFeaturedProfilesServer`, `getProfileBySlugServer`,
+    `getProfilesByRoleServer`, `getProfilesByTagServer`, `getAllRolesServer`,
+    `getAllProfileTagsServer`, `searchProfilesServer`,
+    `getRandomProfilesServer` and the `Profile`, `ProfileFrontmatter` and
+    `ProfileLoaderConfig` types.
+  - The root facade keeps the names it already re-exported
+    (`configureProfileLoader`, `getProfileLoaderConfig`,
+    `resetProfileLoaderConfig`, the ten query functions and the three types);
+    they now resolve to the in-package code.
+
+Changed (build graph)
+
+- `bazel_dep(name = "tummycrypt_tinyland_profile_loader")` and its
+  `npm_link_package` are removed; this module no longer depends on it.
+
+Migration (profile loader consumers)
+
+- Drop `bazel_dep(name = "tummycrypt_tinyland_profile_loader", ...)`, any
+  `single_version_override` and its `npm_link_package`, and depend on
+  `tummycrypt_tinyland_content` 0.8.0 or later.
+- Replace `from '@tummycrypt/tinyland-profile-loader'` with
+  `from '@tummycrypt/tinyland-content/profile-loader'` (same names), or import
+  the aliased names from `@tummycrypt/tinyland-content`.
+- Behavior is unchanged: the default config is still `baseDir: process.cwd()`
+  and `contentSubPath: 'src/content/profiles'`, and the subpath and the facade
+  share one configuration.
+
 ## 0.7.0 — 2026-10-10
 
 Minor release that folds the retired `tummycrypt_tinyland_product_loader`

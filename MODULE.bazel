@@ -1,6 +1,6 @@
 module(
     name = "tummycrypt_tinyland_content",
-    version = "0.7.0",
+    version = "0.8.0",
     compatibility_level = 1,
 )
 
@@ -13,7 +13,6 @@ bazel_dep(name = "rules_nodejs", version = "6.7.3")
 
 # Inter-module dependencies
 bazel_dep(name = "tummycrypt_tinyland_content_types", version = "0.3.1")
-bazel_dep(name = "tummycrypt_tinyland_profile_loader", version = "0.2.3")
 bazel_dep(name = "tummycrypt_tinyland_user_resolution", version = "0.2.3")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
