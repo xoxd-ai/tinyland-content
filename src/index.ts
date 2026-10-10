@@ -201,8 +201,10 @@ export {
   resetConfig as resetEventLoaderConfig,
 } from './event-loader/index.js';
 
-// --- Product loader re-exports (from tinyland-product-loader) ---
-export type { Product, ProductFrontmatter, ProductLoaderConfig } from '@tummycrypt/tinyland-product-loader';
+// --- Product loader (merged from tummycrypt_tinyland_product_loader 0.2.x) ---
+// The full original API, including the AuthorReference and LoadedContent types,
+// is the ./product-loader subpath export. The facade keeps its existing aliased names.
+export type { Product, ProductFrontmatter, ProductLoaderConfig } from './product-loader/index.js';
 export {
   loadProductsServer,
   getPublishedProductsServer,
@@ -216,7 +218,7 @@ export {
   configure as configureProductLoader,
   getConfig as getProductLoaderConfig,
   resetConfig as resetProductLoaderConfig,
-} from '@tummycrypt/tinyland-product-loader';
+} from './product-loader/index.js';
 
 // --- Profile loader re-exports (from tinyland-profile-loader) ---
 export type { Profile, ProfileFrontmatter, ProfileLoaderConfig } from '@tummycrypt/tinyland-profile-loader';
