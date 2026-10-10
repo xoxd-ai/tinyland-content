@@ -1,6 +1,6 @@
 {
   "name": "@tummycrypt/tinyland-content",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Content management services for markdown-based content with versioning, scheduling, and relationship resolution",
   "type": "module",
   "license": "Zlib AND LicenseRef-Tinyland-Proprietary",
@@ -31,6 +31,10 @@
     "./event-loader": {
       "types": "./dist/event-loader/index.d.ts",
       "import": "./dist/event-loader/index.js"
+    },
+    "./product-loader": {
+      "types": "./dist/product-loader/index.d.ts",
+      "import": "./dist/product-loader/index.js"
     }
   },
   "files": [

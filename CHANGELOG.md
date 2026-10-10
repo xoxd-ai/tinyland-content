@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.7.0 — 2026-10-10
+
+Minor release that folds the retired `tummycrypt_tinyland_product_loader`
+module into this package (RU2, RU7). Additive for consumers: no existing
+export or signature changes, and the framework stack is unchanged
+(TypeScript 5.9, Node >= 22), so this is not the RU1 major. Bazel module
+`tummycrypt_tinyland_content` is the only distribution path (RU6).
+
+Added
+
+- Product loader, merged from the retired `tummycrypt_tinyland_product_loader`
+  module (`@tummycrypt/tinyland-product-loader` 0.2.3, repo
+  `xoxd-ai/tinyland-product-loader`, archived). The code is identical to the
+  0.2.3 release; the sources carry the documented copy from the tinyland.dev
+  monorepo (comments only differ), and the test file only changes its import
+  paths.
+  - New subpath export `@tummycrypt/tinyland-content/product-loader` with the
+    original API: `configure`, `getConfig`, `resetConfig`,
+    `loadProductsServer`, `getPublishedProductsServer`,
+    `getFeaturedProductsServer`, `getProductBySlugServer`,
+    `getProductsByCategoryServer`, `getAllCategoriesServer`,
+    `getAllProductTagsServer`, `searchProductsServer`,
+    `getRelatedProductsServer` and the `Product`, `ProductFrontmatter`,
+    `ProductLoaderConfig`, `AuthorReference` and `LoadedContent` types.
+  - The root facade keeps the names it already re-exported
+    (`configureProductLoader`, `getProductLoaderConfig`,
+    `resetProductLoaderConfig`, the nine query functions and the `Product`,
+    `ProductFrontmatter` and `ProductLoaderConfig` types); they now resolve to
+    the in-package code.
+
+Changed (build graph)
+
+- `bazel_dep(name = "tummycrypt_tinyland_product_loader")` and its
+  `npm_link_package` are removed; this module no longer depends on it.
+
+Migration (product loader consumers)
+
+- Drop `bazel_dep(name = "tummycrypt_tinyland_product_loader", ...)`, any
+  `single_version_override` and its `npm_link_package`, and depend on
+  `tummycrypt_tinyland_content` 0.7.0 or later.
+- Replace `from @tummycrypt/tinyland-product-loader` with
+  `from @tummycrypt/tinyland-content/product-loader` (same names), or import
+  the aliased names from `@tummycrypt/tinyland-content`.
+- `configure({ loadContent })` must still be called before the loader
+  functions; the subpath and the facade share one configuration. The
+  unconfigured error text still starts with `tinyland-product-loader:`.
+
 ## 0.6.0 — 2026-10-09
 
 Minor release that folds the retired `tummycrypt_tinyland_event_loader`
