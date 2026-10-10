@@ -220,8 +220,10 @@ export {
   resetConfig as resetProductLoaderConfig,
 } from './product-loader/index.js';
 
-// --- Profile loader re-exports (from tinyland-profile-loader) ---
-export type { Profile, ProfileFrontmatter, ProfileLoaderConfig } from '@tummycrypt/tinyland-profile-loader';
+// --- Profile loader (merged from tummycrypt_tinyland_profile_loader 0.2.x) ---
+// The full original API, including configure/getConfig/resetConfig, is the
+// ./profile-loader subpath export. The facade keeps its existing aliased names.
+export type { Profile, ProfileFrontmatter, ProfileLoaderConfig } from './profile-loader/index.js';
 export {
   loadProfilesServer,
   getPublishedProfilesServer,
@@ -236,7 +238,7 @@ export {
   configure as configureProfileLoader,
   getConfig as getProfileLoaderConfig,
   resetConfig as resetProfileLoaderConfig,
-} from '@tummycrypt/tinyland-profile-loader';
+} from './profile-loader/index.js';
 
 // --- User resolution re-exports (from tinyland-user-resolution) ---
 export type { AdminUser, ResolvedUser, UserResolutionConfig } from '@tummycrypt/tinyland-user-resolution';

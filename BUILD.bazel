@@ -20,11 +20,6 @@ npm_link_package(
 )
 
 npm_link_package(
-    name = "node_modules/@tummycrypt/tinyland-profile-loader",
-    src = "@tummycrypt_tinyland_profile_loader//:pkg",
-)
-
-npm_link_package(
     name = "node_modules/@tummycrypt/tinyland-user-resolution",
     src = "@tummycrypt_tinyland_user_resolution//:pkg",
 )
@@ -55,7 +50,6 @@ ts_project(
         ":node_modules/@types/diff",
         ":node_modules/@types/node",
         ":node_modules/@tummycrypt/tinyland-content-types",
-        ":node_modules/@tummycrypt/tinyland-profile-loader",
         ":node_modules/@tummycrypt/tinyland-user-resolution",
     ],
     visibility = ["//visibility:public"],
@@ -68,7 +62,7 @@ npm_package(
         ":tinyland_content",
     ],
     package = "@tummycrypt/tinyland-content",
-    version = "0.7.0",
+    version = "0.8.0",
     visibility = ["//visibility:public"],
 )
 
@@ -86,7 +80,6 @@ vitest_bin.vitest_test(
         "docs/gf-v4-qualification.candidate.yml",
         "scripts/check-package-artifact.mjs",
         ":node_modules/@tummycrypt/tinyland-content-types",
-        ":node_modules/@tummycrypt/tinyland-profile-loader",
         ":node_modules/@tummycrypt/tinyland-user-resolution",
     ] + glob(["src/**/*.ts"]) + glob(["tests/**/*.test.ts", "tests/**/*.ts"]) + glob([
         ".github/workflows/*.yml",
