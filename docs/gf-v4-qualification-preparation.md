@@ -80,7 +80,7 @@ consumer proof. Those distinct checks and append-only BCR evidence remain.
 
 ## Local preparation and module lock
 
-The existing managed launcher must use this package's Bazel 8.1.1 pin.
+The existing managed launcher must use the version in this package's `.bazelversion`.
 `bazel --batch mod deps --lockfile_mode=update` may generate the actual source
 lock; `--lockfile_mode=error` then checks replay without changing it. These are
 dependency-resolution diagnostics, not build/test actions or Linux remote
