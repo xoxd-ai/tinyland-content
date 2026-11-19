@@ -28,7 +28,7 @@ describe('inert GF v4 qualification source contract', () => {
         },
         'package-check': {
           command: 'build',
-          targets: ['//:pkg'],
+          targets: ['//:pkg', '//:typecheck'],
           capability: 'rbe-linux-x86_64',
           result: { mode: 'status-only' },
         },
@@ -79,7 +79,7 @@ jobs:
       /github_package_name|packages:\s*write|id-token:\s*write|NPM_TOKEN|TINYLAND_GITHUB_PACKAGES_TOKEN|npm publish|pnpm publish/,
     );
     expect(workflow).not.toMatch(/_command:\s*"true"/);
-    for (const target of ['//:test', '//:pkg', '//:package_artifact_test']) {
+    for (const target of ['//:test', '//:pkg', '//:typecheck', '//:package_artifact_test']) {
       expect(workflow).toContain(target);
     }
     expect(await readText(candidatePath)).toContain('# INERT SOURCE CANDIDATE');
