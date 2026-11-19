@@ -17,11 +17,11 @@ authorizes runtime changes.
 | Action | Existing Bazel target | Result |
 | --- | --- | --- |
 | `unit-tests` | `test //:test //:package_artifact_test` | `status-only` |
-| `package-check` | `build //:pkg` | `status-only` |
+| `package-check` | `build //:pkg //:typecheck` | `status-only` |
 
 Both request the abstract `rbe-linux-x86_64` capability; that is not evidence of
 provider supply. `//:pkg` already depends on the `//:tinyland_content`
-TypeScript/declaration compiler. This package has no `//:typecheck` target.
+TypeScript/declaration compiler. The package action also runs the separate no-emit `//:typecheck` target.
 The test action actually requests `bazel test`, not `build //:test`.
 
 The caller is deliberately under `docs/gf-v4-qualification.candidate.yml`,
