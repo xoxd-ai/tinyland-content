@@ -7,6 +7,7 @@
 export {
   shouldIncludeByVisibility,
   loadUserContent,
+  loadUserContentPage,
   loadBlogPosts,
   loadNotes,
   loadProducts,

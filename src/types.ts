@@ -81,6 +81,20 @@ export interface LoadContentOptions {
   federatedOnly?: boolean;
 }
 
+export type LoadUserContentPageOptions = Omit<LoadContentOptions, 'offset' | 'limit'> & {
+  predicate: (item: ContentItem) => boolean;
+  /** Page size from 1 through 100; defaults to 20. */
+  limit?: number;
+  /** Versioned base64url keyset cursor; inputs over 4096 characters are rejected. */
+  cursor?: string;
+};
+
+export interface UserContentPage {
+  items: ContentItem[];
+  totalItems: number;
+  nextCursor: string | null;
+}
+
 
 
 

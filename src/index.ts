@@ -58,6 +58,8 @@ export type {
   ContentType,
   ContentItem,
   LoadContentOptions,
+  LoadUserContentPageOptions,
+  UserContentPage,
   LoadedContent,
   DualSourceOptions,
   LoadOptions,
@@ -85,6 +87,7 @@ export {
 export {
   shouldIncludeByVisibility,
   loadUserContent,
+  loadUserContentPage,
   loadBlogPosts,
   loadNotes,
   loadProducts,
